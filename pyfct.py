@@ -11,7 +11,7 @@ import argparse
 
 
 MSS = 1500
-DEF_PKT_SZ = 30000
+DEF_PKT_SZ = 64000
 DEF_RTT = 10 # In milliseconds
 DEF_RATE = 12000000 
 
