@@ -24,6 +24,53 @@ DEF_RWIN = 16384
 DEF_SSTHRESH = 0x7fffffff # Infinity 
 
 
+def plot_fct_fsize(dict1):
+    
+    fig = plt.figure(figsize=(9, 6))
+    fig.clf()
+    ax = fig.add_subplot(211)
+    data = pd.DataFrame.from_dict(dict1, orient='index').reset_index()
+    data.columns = ['key','fct','cwnd']
+    data.to_csv('data.txt', sep=' ')
+    
+    ax.plot(sorted(data['key']), sorted(data['fct']),'--', 
+            label='flow-size vs fct', color='r', marker='o')
+    # for xy in zip(data['key'], data['fct']):                                       
+    #     ax.annotate('(%s, %s)' % xy, xy=xy, textcoords='data')
+    
+    ax.set_xlabel('Flow size (KB)', weight='bold')
+    ax.set_ylabel('FCT (ms)', weight='bold')
+    # ax.set_ylim([0, 100])
+    # ax.set_xlim([0, 200])
+    ax.legend()
+    plt.grid(which='major', color='#808080', ls='dotted', lw=1.2)
+    plt.grid(which='minor', color='#909090', ls='dotted', lw=0.5)
+    
+    ax2 = fig.add_subplot(212)
+    px2 = np.sort(data['key'])
+    py2 = np.arange(1, len(px2)+1)/len(px2)
+    
+    plt.plot(px2, py2,'--', linewidth=4, label='Flow size', color='g')
+    
+    
+    ax2.set_xlabel('Flow size (KB)', weight='bold')
+    # ax.set_xlim([10, 10**4])
+    ax2.set_xscale('log')
+    ax2.xaxis.set_major_formatter(ticker.FormatStrFormatter("%g"))
+    
+    ax2.set_ylabel('ECDF', weight='bold')
+    ax2.set_ylim([0, 1.0])
+    ax2.yaxis.set_major_locator(ticker.MultipleLocator(0.2))
+    ax2.yaxis.set_minor_locator(ticker.MultipleLocator(0.1))
+    ax2.yaxis.set_major_formatter(ticker.FormatStrFormatter("%.1f"))
+    ax2.legend()
+    plt.grid(which='major', color='#808080', ls='dotted', lw=1.2)
+    plt.grid(which='minor', color='#909090', ls='dotted', lw=0.5)
+    
+    timestr = time.strftime("%Y%m%d-%H%M%S")
+    fig.savefig('reno_fct_fsize-'+timestr+'.png', 
+                dpi=300, bbox_inches='tight')
+
 def plot_flowsize_cdf(dict1):
     
     fig = plt.figure(figsize=(9, 6))
@@ -58,8 +105,8 @@ def plot_flowsize_cdf(dict1):
     plt.plot(px2, py2,'--', linewidth=4, label='fct', color='b')
     ax2.set_xlabel('FCT (ms)', weight='bold')
     # ax.set_xlim([10, 10**4])
-    ax2.set_xscale('log')
-    ax2.xaxis.set_major_formatter(ticker.FormatStrFormatter("%g"))
+    # ax2.set_xscale('log')
+    # ax2.xaxis.set_major_formatter(ticker.FormatStrFormatter("%.1f"))
     
     ax2.set_ylabel('ECDF', weight='bold')
     ax2.set_ylim([0, 1.0])
@@ -84,7 +131,7 @@ def plot_fct_flowsize(dict1):
     data.to_csv('data.txt', sep=' ')
     
     ax.plot(sorted(data['key']), sorted(data['fct']),'--', 
-            label='flow-size vs fct', color='r')
+            label='flow-size vs fct', color='r', marker='o')
     # for xy in zip(data['key'], data['fct']):                                       
     #     ax.annotate('(%s, %s)' % xy, xy=xy, textcoords='data')
     
@@ -117,7 +164,7 @@ def plot_fct_flowsize(dict1):
 def slow_start(pkt_sz, init_cwnd, rtt):
     # print('Slow start')
     fct = (1+math.floor(math.log(pkt_sz/init_cwnd,2)))*rtt
-    # print('fct in ss is {}'.format(fct))
+    print('fct in ss is {} for fsize {}'.format(fct, pkt_sz))
     cwnd_ss = (2**(int(fct/rtt)-1))*14600
     return fct, cwnd_ss
 
@@ -127,7 +174,7 @@ def cong_avoidance(bdp, pkt_sz, init_cwnd, rtt, rate):
     rate_bytes = rate/8
     # a = math.log(bdp/init_cwnd,2)
     fct = ((math.log(bdp/init_cwnd,2)*rtt))+(pkt_sz/rate_bytes)
-    # print('fct in ca is {}'.format(fct))
+    print('fct in ca is {} for fsize {}'.format(fct, pkt_sz))
     cwnd_ca = (2**(int(fct/rtt)))*14600
     return fct, cwnd_ca
 
@@ -137,47 +184,49 @@ def main(args):
     bdp = (args.capacity/8)*args.rtt/1000
     rate_bytes = args.capacity/8
     
-    if not args.file:
-        flow_size = args.pkt_sz
-    else:
-        sizes = pd.read_csv(args.file, header=None, delimiter=' ')
-        for i in range(0,10001):
-            flow_size = (random.choice(sizes[0]))*10
-            # print('flowsize from file is {}'.format(flow_size))
-    
-            if flow_size <= args.cwnd*MSS:
-                # print('Check here!')
-                fct = (args.rtt/1000) + (flow_size/rate_bytes)
-                flow_size = flow_size/1000
-                fct_dict[flow_size] = (fct*1000, (args.cwnd*MSS)/1000)
-            elif (flow_size > args.cwnd*MSS) and (flow_size <= (bdp)):
-                fct, cwnd_ss = slow_start(flow_size, args.cwnd*MSS, args.rtt/1000)
-                cwnd_ss = cwnd_ss/1000
-                flow_size = flow_size/1000
-                fct_dict[flow_size] = (fct*1000, cwnd_ss)
-            else:
-                fct, cwnd_ca = cong_avoidance(bdp, flow_size, args.cwnd*MSS, 
-                                     args.rtt/1000, args.capacity)
-                cwnd_ca = cwnd_ca/1000
-                flow_size = flow_size/1000
-                fct_dict[flow_size] = (fct*1000, cwnd_ca)
+    # if not args.file:
+    #     flow_size = args.pkt_sz
+    # else:
+    sizes = pd.read_csv(args.file, header=None, delimiter=' ')
+    for i in range(0,101):
+        flow_size = (random.choice(sizes[0]))*10
+        # print('flowsize from file is {}'.format(flow_size))
+
+        if flow_size <= args.cwnd*MSS:
+            # print('Check here!')
+            fct = (args.rtt/1000) + (flow_size/rate_bytes)
+            
+            flow_size = flow_size/1000
+            print('fct is {} for fsize {}'.format(fct, flow_size))
+            fct_dict[flow_size] = (fct*1000, (args.cwnd*MSS)/1000)
+        elif (flow_size > args.cwnd*MSS) and (flow_size <= (bdp)):
+            fct, cwnd_ss = slow_start(flow_size, args.cwnd*MSS, args.rtt/1000)
+            cwnd_ss = cwnd_ss/1000
+            flow_size = flow_size/1000
+            fct_dict[flow_size] = (fct*1000, cwnd_ss)
+        else:
+            fct, cwnd_ca = cong_avoidance(bdp, flow_size, args.cwnd*MSS, 
+                                 args.rtt/1000, args.capacity)
+            cwnd_ca = cwnd_ca/1000
+            flow_size = flow_size/1000
+            fct_dict[flow_size] = (fct*1000, cwnd_ca)
     
     # TODO: clean this up! 
-    if flow_size <= args.cwnd*MSS:
-        fct = (args.rtt/1000) + (flow_size/rate_bytes)
-        flow_size = flow_size/1000
-        fct_dict[flow_size] = (fct*1000, (args.cwnd*MSS)/1000)
-    elif (flow_size > args.cwnd*MSS) and (flow_size <= (bdp)):
-        fct, cwnd_ss = slow_start(flow_size, args.cwnd*MSS, args.rtt/1000)
-        cwnd_ss = cwnd_ss/1000
-        flow_size = flow_size/1000
-        fct_dict[flow_size] = (fct*1000, cwnd_ss)
-    else:
-        fct, cwnd_ca = cong_avoidance(bdp, flow_size, args.cwnd*MSS, 
-                                     args.rtt/1000, args.capacity)
-        cwnd_ca = cwnd_ca/1000
-        flow_size = flow_size/1000
-        fct_dict[flow_size] = (fct*1000, cwnd_ca)
+    # if flow_size <= args.cwnd*MSS:
+    #     fct = (args.rtt/1000) + (flow_size/rate_bytes)
+    #     flow_size = flow_size/1000
+    #     fct_dict[flow_size] = (fct*1000, (args.cwnd*MSS)/1000)
+    # elif (flow_size > args.cwnd*MSS) and (flow_size <= (bdp)):
+    #     fct, cwnd_ss = slow_start(flow_size, args.cwnd*MSS, args.rtt/1000)
+    #     cwnd_ss = cwnd_ss/1000
+    #     flow_size = flow_size/1000
+    #     fct_dict[flow_size] = (fct*1000, cwnd_ss)
+    # else:
+    #     fct, cwnd_ca = cong_avoidance(bdp, flow_size, args.cwnd*MSS, 
+    #                                  args.rtt/1000, args.capacity)
+    #     cwnd_ca = cwnd_ca/1000
+    #     flow_size = flow_size/1000
+    #     fct_dict[flow_size] = (fct*1000, cwnd_ca)
 
     if args.verbose:
         print('Dictionary {}'.format(fct_dict))
@@ -185,6 +234,7 @@ def main(args):
     # plot fct vs flow size
     plot_fct_flowsize(fct_dict)
     plot_flowsize_cdf(fct_dict)
+    plot_fct_fsize(fct_dict)
     
     
 
