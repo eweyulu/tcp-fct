@@ -19,7 +19,7 @@ MSS = 1460
 DEF_PKT_SZ = 8220
 DEF_RTT = 10 # In milliseconds
 DEF_RATE = 12000000 
-DEF_INIT_CWND = 10
+DEF_INIT_CWND = 1
 DEF_RWIN = 16384
 DEF_SSTHRESH = 0x7fffffff # Infinity 
 
@@ -31,7 +31,7 @@ def plot_fct_fsize(dict1):
     ax = fig.add_subplot(211)
     data = pd.DataFrame.from_dict(dict1, orient='index').reset_index()
     data.columns = ['key','fct','cwnd']
-    data.to_csv('data.txt', sep=' ')
+    data.to_csv('initcwnd'+DEF_INIT_CWND+'-data.txt', sep=' ')
     
     ax.plot(sorted(data['key']), sorted(data['fct']),'--', 
             label='flow-size vs fct', color='r', marker='o')
@@ -68,7 +68,7 @@ def plot_fct_fsize(dict1):
     plt.grid(which='minor', color='#909090', ls='dotted', lw=0.5)
     
     timestr = time.strftime("%Y%m%d-%H%M%S")
-    fig.savefig('reno_fct_fsize-'+timestr+'.png', 
+    fig.savefig('initcwnd'+DEF_INIT_CWND+'-reno_fct_fsize-'+timestr+'.png', 
                 dpi=300, bbox_inches='tight')
 
 def plot_flowsize_cdf(dict1):
@@ -118,7 +118,7 @@ def plot_flowsize_cdf(dict1):
     plt.grid(which='minor', color='#909090', ls='dotted', lw=0.5)
     
     timestr = time.strftime("%Y%m%d-%H%M%S")
-    fig.savefig('reno_fsize-cdf-'+timestr+'.png', 
+    fig.savefig('initcwnd'+DEF_INIT_CWND+'-reno_fsize-cdf-'+timestr+'.png', 
                 dpi=300, bbox_inches='tight')
 
 def plot_fct_flowsize(dict1):
@@ -155,7 +155,7 @@ def plot_fct_flowsize(dict1):
     plt.grid(which='minor', color='#909090', ls='dotted', lw=0.5)
     
     timestr = time.strftime("%Y%m%d-%H%M%S")
-    fig.savefig('reno_fsize-fct-cwnd-'+timestr+'.png', 
+    fig.savefig('initcwnd'+DEF_INIT_CWND+'-reno_fsize-fct-cwnd-'+timestr+'.png', 
                 dpi=300, bbox_inches='tight')
     
     
