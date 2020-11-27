@@ -19,22 +19,24 @@ MSS = 1460
 DEF_PKT_SZ = 8220
 DEF_RTT = 10 # In milliseconds
 DEF_RATE = 12000000 
-DEF_INIT_CWND = 1
+DEF_INIT_CWND = 10
 DEF_RWIN = 16384
 DEF_SSTHRESH = 0x7fffffff # Infinity 
 
 
-def plot_fct_fsize(dict1):
+def plot_fct_fsize(dict1,reno_df):
     
     fig = plt.figure(figsize=(9, 6))
     fig.clf()
     ax = fig.add_subplot(211)
     data = pd.DataFrame.from_dict(dict1, orient='index').reset_index()
     data.columns = ['key','fct','cwnd']
-    data.to_csv('initcwnd'+DEF_INIT_CWND+'-data.txt', sep=' ')
+    data.to_csv('initcwnd'+str(DEF_INIT_CWND)+'-data.txt', sep=' ')
     
+    ax.plot(sorted(reno_df['fsize']), sorted(reno_df['fct']),'--', 
+            label='NewReno observed FCT', color='b', marker='o')
     ax.plot(sorted(data['key']), sorted(data['fct']),'--', 
-            label='flow-size vs fct', color='r', marker='o')
+            label='Expected FCT', color='r', marker='o')
     # for xy in zip(data['key'], data['fct']):                                       
     #     ax.annotate('(%s, %s)' % xy, xy=xy, textcoords='data')
     
@@ -47,10 +49,13 @@ def plot_fct_fsize(dict1):
     plt.grid(which='minor', color='#909090', ls='dotted', lw=0.5)
     
     ax2 = fig.add_subplot(212)
-    px2 = np.sort(data['key'])
+    px = np.sort(data['key'])
+    py = np.arange(1, len(px)+1)/len(px)
+    px2 = np.sort(reno_df['fsize'])
     py2 = np.arange(1, len(px2)+1)/len(px2)
     
-    plt.plot(px2, py2,'--', linewidth=4, label='Flow size', color='g')
+    ax2.plot(px, py,'--', linewidth=4, label='fsize-expected-experiment', color='g')
+    ax2.plot(px2, py2,'--', linewidth=4, label='fsize-newreno-experiment', color='gray')
     
     
     ax2.set_xlabel('Flow size (KB)', weight='bold')
@@ -68,7 +73,7 @@ def plot_fct_fsize(dict1):
     plt.grid(which='minor', color='#909090', ls='dotted', lw=0.5)
     
     timestr = time.strftime("%Y%m%d-%H%M%S")
-    fig.savefig('initcwnd'+DEF_INIT_CWND+'-reno_fct_fsize-'+timestr+'.png', 
+    fig.savefig('initcwnd'+str(DEF_INIT_CWND)+'-reno_fct_fsize-'+timestr+'.png', 
                 dpi=300, bbox_inches='tight')
 
 def plot_flowsize_cdf(dict1):
@@ -118,7 +123,7 @@ def plot_flowsize_cdf(dict1):
     plt.grid(which='minor', color='#909090', ls='dotted', lw=0.5)
     
     timestr = time.strftime("%Y%m%d-%H%M%S")
-    fig.savefig('initcwnd'+DEF_INIT_CWND+'-reno_fsize-cdf-'+timestr+'.png', 
+    fig.savefig('initcwnd'+str(DEF_INIT_CWND)+'-reno_fsize-cdf-'+timestr+'.png', 
                 dpi=300, bbox_inches='tight')
 
 def plot_fct_flowsize(dict1):
@@ -155,7 +160,7 @@ def plot_fct_flowsize(dict1):
     plt.grid(which='minor', color='#909090', ls='dotted', lw=0.5)
     
     timestr = time.strftime("%Y%m%d-%H%M%S")
-    fig.savefig('initcwnd'+DEF_INIT_CWND+'-reno_fsize-fct-cwnd-'+timestr+'.png', 
+    fig.savefig('initcwnd'+str(DEF_INIT_CWND)+'-reno_fsize-fct-cwnd-'+timestr+'.png', 
                 dpi=300, bbox_inches='tight')
     
     
@@ -163,8 +168,8 @@ def plot_fct_flowsize(dict1):
     
 def slow_start(pkt_sz, init_cwnd, rtt):
     # print('Slow start')
-    fct = (1+math.floor(math.log(pkt_sz/init_cwnd,2)))*rtt
-    print('fct in ss is {} for fsize {}'.format(fct, pkt_sz))
+    fct = (2+math.floor(math.log(pkt_sz/init_cwnd,2)))*rtt
+    # print('fct in ss is {} for fsize {}'.format(fct, pkt_sz))
     cwnd_ss = (2**(int(fct/rtt)-1))*14600
     return fct, cwnd_ss
 
@@ -173,8 +178,8 @@ def cong_avoidance(bdp, pkt_sz, init_cwnd, rtt, rate):
     # print('Congestion Avoidance')
     rate_bytes = rate/8
     # a = math.log(bdp/init_cwnd,2)
-    fct = ((math.log(bdp/init_cwnd,2)*rtt))+(pkt_sz/rate_bytes)
-    print('fct in ca is {} for fsize {}'.format(fct, pkt_sz))
+    fct = ((math.log(bdp/init_cwnd,2)+1)*rtt)+(pkt_sz/rate_bytes)
+    # print('fct in ca is {} for fsize {}'.format(fct, pkt_sz))
     cwnd_ca = (2**(int(fct/rtt)))*14600
     return fct, cwnd_ca
 
@@ -188,16 +193,18 @@ def main(args):
     #     flow_size = args.pkt_sz
     # else:
     sizes = pd.read_csv(args.file, header=None, delimiter=' ')
+    fsizes = []
     for i in range(0,101):
         flow_size = (random.choice(sizes[0]))*10
         # print('flowsize from file is {}'.format(flow_size))
+        fsizes.append(flow_size/10)
 
         if flow_size <= args.cwnd*MSS:
             # print('Check here!')
-            fct = (args.rtt/1000) + (flow_size/rate_bytes)
+            fct = (2*args.rtt/1000) + (flow_size/rate_bytes)
             
             flow_size = flow_size/1000
-            print('fct is {} for fsize {}'.format(fct, flow_size))
+            # print('fct is {} for fsize {}'.format(fct, flow_size))
             fct_dict[flow_size] = (fct*1000, (args.cwnd*MSS)/1000)
         elif (flow_size > args.cwnd*MSS) and (flow_size <= (bdp)):
             fct, cwnd_ss = slow_start(flow_size, args.cwnd*MSS, args.rtt/1000)
@@ -231,10 +238,20 @@ def main(args):
     if args.verbose:
         print('Dictionary {}'.format(fct_dict))
     
+    # Get fsize and fct data for reno pantheon experiment
+    # Make a DataFrame
+    reno_df = pd.read_csv('fct_test/renos_sz_fct.txt', 
+                          header=None, delimiter=',')
+    reno_df.columns = ['fsize','fct']
+    
+    # Record flow sizes
+    np.savetxt('fsize-' +str(DEF_INIT_CWND)+'.txt', fsizes, 
+               fmt='%i', delimiter=' ')
+    
     # plot fct vs flow size
     plot_fct_flowsize(fct_dict)
     plot_flowsize_cdf(fct_dict)
-    plot_fct_fsize(fct_dict)
+    plot_fct_fsize(fct_dict, reno_df)
     
     
 
