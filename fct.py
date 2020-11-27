@@ -87,7 +87,7 @@ def get_basic_fct(rtt, rate, flow_sz):
 
 
 def get_log_fct(rtt, rate, flow_sz): 
-    #Get FCT estimation using basic calculations 
+    #Get FCT estimation using log-based calculations 
     
     dict_fct = {}
     initcwnd = INIT_CWND*MSS
@@ -119,7 +119,7 @@ def get_log_fct(rtt, rate, flow_sz):
 
 
 def get_plots_no_estimate(*args):
-    #Plot FCT results with no FCT estimation
+    #Plot FCT results with no FCT estimations
     
     reno_df = args[0]
     cubic_df = args[1]
@@ -153,7 +153,7 @@ def get_plots_no_estimate(*args):
     fig.savefig(str(filename), dpi=300)
 
 def get_plots(*args):
-    #Plot FCT results with FCT estimation
+    #Plot FCT results with FCT estimations
     
     reno_df = args[0]
     cubic_df = args[1]
@@ -264,10 +264,7 @@ if __name__ == '__main__':
                         type=int, default=QSIZE)
     
     
-    main(parser.parse_args())
-    
-    
-                
+    main(parser.parse_args())     
                 
     
     
