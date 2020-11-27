@@ -149,7 +149,7 @@ def get_plots_no_estimate(*args):
     plt.grid(which='major', color='#808080', ls='dotted', lw=1.2)
     plt.grid(which='minor', color='#909090', ls='dotted', lw=0.5)
 
-    filename = DATADIR / 'fct-check-25112020/reno-cubic-ns3-d{}b{}q{}-noest.png'.format(delay,rate,que)
+    filename = DATADIR / str('reno-cubic-ns3-d{}b{}q{}-'.format(delay,rate,que)+'.png')
     fig.savefig(str(filename), dpi=300)
 
 def get_plots(*args):
