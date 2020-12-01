@@ -36,21 +36,21 @@ def get_basic_fct(rtt, rate, flow_sz):
         if sz <= bdp: 
             if sz <= initcwnd:
                 fct = (2*rtt) + tdelay
-            elif sz > initcwnd and sz <= initcwnd*2:
+            elif sz <= initcwnd*2:
                 fct = (3*rtt) + ((wind2_pkt*MSS)/float(rate_bytes))
                 wind2_pkt+=1
-            elif sz > initcwnd and sz <= initcwnd*(2**2):
+            elif sz <= initcwnd*(2**2):
                 fct = (4*rtt) + ((wind3_pkt*MSS)/float(rate_bytes))
                 wind3_pkt += 1
-            elif sz > initcwnd and sz <= initcwnd*(2**3):
+            elif sz <= initcwnd*(2**3):
                 fct = (5*rtt) + ((wind4_pkt*MSS)/float(rate_bytes))
                 wind4_pkt += 1
-            elif sz > initcwnd and sz <= initcwnd*(2**4):
+            elif sz <= initcwnd*(2**4):
                 fct = (6*rtt) + ((wind5_pkt*MSS)/float(rate_bytes))
                 wind5_pkt += 1
         else:
 #           TODO: Fix calculation for after flow_size is greater than bdp
-            fct = ((1+(math.ceil(math.log((bdp+(initcwnd-MSS))/float(initcwnd),2))))*rtt)+(sz/float(rate_bytes))
+            fct = ((1+(math.ceil(math.log((bdp+(initcwnd-MSS))/float(initcwnd),2))))*rtt) + tdelay
     
         dict_fct[rtt][rate][sz]['fct'] = fct
     return dict_fct
