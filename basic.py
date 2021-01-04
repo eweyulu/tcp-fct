@@ -4,53 +4,39 @@
 """
 
 """
+import numpy as np
 
-import math
 
+#Get FCT estimation by tracking current cwnd and comparing it to flow size 
 MSS = 1440
-INIT_CWND = 10
-QSIZE = 20 #In packets
-DEF_RTT = 20 #In ms
-DEF_RATE = 12 #Mbps
 
-# TODO: Clean up code structure
-def get_basic_fct(rtt, rate, flow_sz): 
-    #Get FCT estimation using basic calculations 
-    
+def get_basic_fct(cwnd, rtt, rate, flow_sz):
     dict_fct = {}
-    initcwnd = INIT_CWND*MSS
-    
-    dict_fct[rtt] = {}
-    dict_fct[rtt][rate] = {}
+    dict_fct[cwnd] = {}
+    dict_fct[cwnd][rtt] = {}
+    dict_fct[cwnd][rtt][rate] = {}
     rate_bytes = (rate*1000000)/float(8)
     bdp = rate_bytes*rtt
     
-    wind2_pkt = 1
-    wind3_pkt = 1
-    wind4_pkt = 1
-    wind5_pkt = 1
+    dict_fct[cwnd][rtt][rate] = {}
+    initcwnd = cwnd*MSS
+    rate_bytes = (rate*1000000)/float(8)
+    bdp = rate_bytes*rtt
+    n_cwnd = len(flow_sz) # Number of cwnds you want to calculate for 
+
     for pkts in flow_sz:
+        
         sz = pkts*MSS
-        dict_fct[rtt][rate][sz] = {}
-        tdelay = (MSS/float(rate_bytes))*pkts
-        if sz <= bdp: 
-            if sz <= initcwnd:
-                fct = (2*rtt) + tdelay
-            elif sz <= initcwnd*2:
-                fct = (3*rtt) + ((wind2_pkt*MSS)/float(rate_bytes))
-                wind2_pkt+=1
-            elif sz <= initcwnd*(2**2):
-                fct = (4*rtt) + ((wind3_pkt*MSS)/float(rate_bytes))
-                wind3_pkt += 1
-            elif sz <= initcwnd*(2**3):
-                fct = (5*rtt) + ((wind4_pkt*MSS)/float(rate_bytes))
-                wind4_pkt += 1
-            elif sz <= initcwnd*(2**4):
-                fct = (6*rtt) + ((wind5_pkt*MSS)/float(rate_bytes))
-                wind5_pkt += 1
-        else:
-#           TODO: Fix calculation for after flow_size is greater than bdp
-            fct = ((1+(math.ceil(math.log((bdp+(initcwnd-MSS))/float(initcwnd),2))))*rtt) + tdelay
-    
-        dict_fct[rtt][rate][sz]['fct'] = fct
+        dict_fct[cwnd][rtt][rate][sz] = {}
+
+        if sz <= bdp:
+            sz_lim = np.concatenate((
+                [0],
+                initcwnd * (2**(np.arange(n_cwnd)+1)-1) # Get cwnd step sizes
+            ))
+            i_win = np.where(sz <= sz_lim)[0][0] # extract first True value 
+        remain_data = sz-sz_lim[i_win-1]
+        fct = ((i_win+1)*rtt) + sz/float(rate_bytes) 
+        # print('pkts: {}, sz: {}, remain_data: {}, i_win: {}, fct: {}'.format(pkts, sz, remain_data,i_win, fct))
+        dict_fct[cwnd][rtt][rate][sz]['fct'] = fct
     return dict_fct
